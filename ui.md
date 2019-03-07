@@ -11,7 +11,7 @@ struct ui_node {
 struct ui_panel {
     ui_id id;
     struct ui_box box;
-    int node_idx;
+    int node;
 };
 enum ui_pass {
     // public
