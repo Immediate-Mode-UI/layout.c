@@ -46,7 +46,7 @@ static int ui_node_cnt = 0;
 
 // table
 #define UI_TBL_CNT (UI_MAX_NODES * 2)
-#define UI_TBL_MSK ((UI_MAX_NODES * 2)-1)
+#define UI_TBL_MSK (UI_TBL_CNT-1)
 static ui_id ui_tbl_keys[UI_TBL_CNT];
 static int ui_tbl_vals[UI_TBL_CNT];
 static int ui_tbl_cnt = 0;
