@@ -4,9 +4,8 @@ struct ui_box {int x,y,w,h;};
 typedef unsigned long long ui_id;
 struct ui_node {
     int parent;
-    int chd;
-    int nxt;
-    int cnt;
+    int lst, end;
+    int nxt, cnt;
     int siz[2];
 };
 struct ui_panel {
@@ -53,7 +52,7 @@ static int ui_tbl_cnt = 0;
 static ui_id
 ui_gen_id()
 {
-    ui_id id = ui_id_stk[ui_id_stk_top-1];
+    const ui_id id = ui_id_stk[ui_id_stk_top-1];
     ui_id_stk[ui_id_stk_top-1] = (id & ~0xffffffffllu) | ((id & 0xffffffffllu) + 1);
     return id;
 }
@@ -85,11 +84,14 @@ ui_add_node(int parent)
     n->parent = parent;
     if (parent >= 0) {
         struct ui_node *p = &ui_tree[parent];
-        n->nxt = p->chd;
-        p->chd = n - ui_tree;
+        if (p->lst < 0) {
+            p->end = ui_node_cnt;
+            p->lst = p->end;
+        } else ui_tree[p->end].nxt = ui_node_cnt;
+        n->nxt = -1;
         p->cnt++;
-    } 
-    n->chd = -1;
+    }
+    n->lst = n->end = -1;
     ui_add(pan->id, ui_node_cnt);
     return ui_node_cnt++;
 }
@@ -118,8 +120,8 @@ ui_panel_end(struct ui_panel *pan)
     switch (ui_pass) {
     default: break;
     case UI_BLUEPRINT: {
-        struct ui_node *n = ui_tree + pan->node;
-        int i = n->chd;
+        /* default blueprint */
+        int i = n->lst;
         while (i != -1) {
             n->siz[0] = max(n->siz[1], ui_tree[i].siz[1]);
             n->siz[1] = max(n->siz[1], ui_tree[i].siz[1])
@@ -146,12 +148,13 @@ ui_begin(struct ui_panel* root, struct ui_box scr)
     } break;}
 
     ui_stk_top = 1;
-    ui_id_stk[0] = -1;
+    ui_id_stk[0] = 1;
     ui_panel_begin(root, scr);
 }
 static void
-ui_end(void)
+ui_end(struct ui_panel* root)
 {
+    ui_panel_end(root);
     assert(ui_stk_top == 1);
     assert(ui_id_stk_top == 1);
 
@@ -160,22 +163,7 @@ ui_end(void)
     case UI_LAYOUT: ui_pass = UI_INPUT; break;
     case UI_INPUT: ui_pass = UI_RENDER; break;
     case UI_RENDER: ui_pass = UI_FINISHED; break;
-    case UI_BLUEPRINT: {
-        ui_pass = UI_LAYOUT; break
-        for (i = ui_node_cnt; i > 0; ++i) {
-            /* reverse children list */
-            struct ui_node *n = ui_tree + i - 1;
-            if (n->chd != -1) {
-                int a = n->chd;
-                int b = ui_tree[a].nxt;
-                while (a != -1 && b != -1) {
-                    int nxt = ui_tree[b].nxt;
-                    ui_tree[b].nxt = a;
-                    a = b, b = nxt;
-                }
-            }
-        } 
-    } break;}   
+    case UI_BLUEPRINT:  ui_pass = UI_LAYOUT; break;}   
 }
 
 // --- Widgets --------------------------------------------------------------------------
@@ -234,7 +222,7 @@ ui_lay_end(struct ui_lay *lay)
     default: break;
     case UI_BLUEPRINT: {
         struct ui_node *n = ui_tree + lay->pan.node;
-        int i = n->chd;
+        int i = n->lst;
         while (i != -1) {
             switch (lay->flow) {
             case UI_HORIZONTAL: {
@@ -259,7 +247,7 @@ ui_lbl(struct ui_box box, const char *str_begin, const char *str_end)
         switch (ui_pass) {
         default: break;
         case UI_BLUEPRINT: {
-            /* some dummy code for calculationg text size */
+            /* some dummy code for calculating text size */
             #define TEST_CHAR_WIDTH 6
             #define TEST_CHAR_HEIGHT 12
             struct ui_node *n = ui_tree + pan.node;
@@ -300,7 +288,7 @@ int main(int argc, char **argv)
                 ui_lay_end(&row1);
             }
             ui_lay_end(&col);
-            ui_end();
+            ui_end(&root);
         }
     }
     return 0;
