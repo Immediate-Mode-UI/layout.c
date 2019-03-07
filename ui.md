@@ -259,8 +259,7 @@ ui_lbl(struct ui_box box, const char *str_begin, const char *str_end)
 }
 int main(int argc, char **argv)
 {
-    bool running = true;
-    while( running ) {
+    while( 1 ) {
         // run ui passes
         struct ui_panel root;
         struct ui_box scrn = (struct ui_box){0,0,1200,800};
