@@ -45,8 +45,10 @@ static struct ui_node ui_tree[UI_MAX_NODES];
 static int ui_node_cnt = 0;
 
 // table
-static ui_id ui_tbl_keys[UI_MAX_NODES * 2];
-static int ui_tbl_vals[UI_MAX_NODES * 2];
+#define UI_TBL_CNT (UI_MAX_NODES * 2)
+#define UI_TBL_MSK ((UI_MAX_NODES * 2)-1)
+static ui_id ui_tbl_keys[UI_TBL_CNT];
+static int ui_tbl_vals[UI_TBL_CNT];
 static int ui_tbl_cnt = 0;
 
 #define max(a,b) ((a) > (b) ? (a) : (b))
@@ -58,11 +60,21 @@ ui_gen_id()
     ui_id_stk[ui_id_stk_top-1] = (id & ~0xffffffffllu) | ((id & 0xffffffffllu) + 1);
     return id;
 }
+static ui_id
+ui_hash(ui_id x)
+{
+    x ^= x >> 30;
+    x *= 0xbf58476d1ce4e5b9llu;
+    x ^= x >> 27;
+    x *= 0x94d049bb133111ebllu;
+    x ^= x >> 31;
+    return x;
+}
 static void
 ui_add(ui_id key, int val)
 {
     ui_id n = (ui_id)ui_tbl_cnt;
-    ui_id i = key & (n-1), b = i;
+    ui_id i = key & UI_TBL_MSK, b = i;
     do {if (ui_tbl_keys[i]) continue;
         ui_tbl_keys[i] = key;
         ui_tbl_vals[i] = val; return;
@@ -72,11 +84,11 @@ static int
 ui_fnd(ui_id key)
 {
     ui_id k, n = (ui_id)ui_tbl_cnt;
-    ui_id i = key & (n-1), b = i;
+    ui_id i = key & UI_TBL_MSK, b = i;
     do {if (!(k = ui_tbl_keys[i])) return 0;
         if (k == key) return (int)i;
     } while ((i = ((i+1) & (n-1))) != b);
-    return UI_MAX_NODES;
+    return UI_TBL_CNT;
 }
 static int
 ui_add_node(ui_id id, int parent)
@@ -89,12 +101,15 @@ ui_add_node(ui_id id, int parent)
         if (p->lst < 0) {
             p->end = ui_node_cnt;
             p->lst = p->end;
-        } else ui_tree[p->end].nxt = ui_node_cnt;
+        } else {
+            ui_tree[p->end].nxt = ui_node_cnt;
+            p->end = ui_node_cnt;
+        }
         n->nxt = -1;
         p->cnt++;
     }
     n->lst = n->end = -1;
-    ui_add(id, ui_node_cnt);
+    ui_add(ui_hash(id), ui_node_cnt);
     return ui_node_cnt++;
 }
 static void
@@ -111,9 +126,10 @@ ui_panel_begin(struct ui_panel *pan, struct ui_box box)
         ui_stk[ui_stk_top++] = pan->node;
     } break;
     default: {
-        pan->node = ui_fnd(pan->id);
-        if (pan->node >= UI_MAX_NODES)
+        const int idx = ui_fnd(ui_hash(pan->id));
+        if (idx >= UI_TBL_CNT)
             ui_pass =  UI_INVALID;
+        else pan->node = ui_tbl_vals[idx];
     } break; }
 }
 static void
@@ -149,9 +165,10 @@ ui_begin(struct ui_panel* root, struct ui_box scr)
         ui_pass = UI_BLUEPRINT;
         return 0;
     }}
-
-    ui_stk_top = 1;
+    ui_id_stk_top = 1;
     ui_id_stk[0] = 1;
+    ui_stk_top = 1;
+    ui_stk[0] = -1;
     ui_panel_begin(root, scr);
     return 1;
 }
@@ -188,7 +205,12 @@ ui_lay_begin(struct ui_lay *lay, enum ui_flow flow, struct ui_box box)
     ui_panel_begin(&lay->pan, box);
 
     switch (ui_pass) {
-    case UI_LAYOUT: {
+    case UI_BLUEPRINT: break;
+    default: {
+        const struct ui_node *n = ui_tree + lay->pan.node;
+        lay->pan.box.w = n->siz[0];
+        lay->pan.box.h = n->siz[1];
+
         lay->at = lay->flow == UI_HORIZONTAL ? box.x: box.y;
         lay->n = ui_tree[lay->pan.node].lst;
         // TODO(micha): handle case box.w/h < node.siz
@@ -201,17 +223,17 @@ ui_lay_gen(struct ui_lay *lay)
     assert(lay->n != -1);
 
     switch (ui_pass) {
-    default: break;
-    case UI_LAYOUT: {
+    case UI_BLUEPRINT: break;
+    default: {
         struct ui_node *n = ui_tree + lay->n;
         switch (lay->flow) {
         case UI_HORIZONTAL: {
-            b = (struct ui_box){lay->at, lay->pan.box.y, n->siz[0], lay->pan.box.h};
-            lay->at = n->siz[0] + lay->spacing;
+            b = (struct ui_box){lay->at, lay->pan.box.y, n->siz[0], n->siz[1]};
+            lay->at += n->siz[0] + lay->spacing;
         } break;
         case UI_VERTICAL: {
-            b = (struct ui_box){lay->pan.box.x, lay->at, lay->pan.box.w, n->siz[1]};
-            lay->at = n->siz[1] + lay->spacing;
+            b = (struct ui_box){lay->pan.box.x, lay->at, n->siz[0], n->siz[1]};
+            lay->at += n->siz[1] + lay->spacing;
         }}
         lay->n = ui_tree[lay->n].nxt;
         return b;
@@ -226,16 +248,18 @@ ui_lay_end(struct ui_lay *lay)
     default: break;
     case UI_BLUEPRINT: {
         struct ui_node *n = ui_tree + lay->pan.node;
+        n->siz[0] = n->siz[1] = 0;
+
         int i = n->lst;
         while (i != -1) {
             switch (lay->flow) {
             case UI_HORIZONTAL: {
-                n->siz[0] = ui_tree[i].siz[0] + lay->spacing;
+                n->siz[0] += ui_tree[i].siz[0] + lay->spacing;
                 n->siz[1] = max(n->siz[1], ui_tree[i].siz[1]);
             } break;
             case UI_VERTICAL: {
                 n->siz[0] = max(n->siz[0], ui_tree[i].siz[0]);
-                n->siz[1] = ui_tree[i].siz[1] + lay->spacing;
+                n->siz[1] += ui_tree[i].siz[1] + lay->spacing;
             } break;}
             i = ui_tree[i].nxt;
         }
