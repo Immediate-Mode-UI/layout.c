@@ -1,4 +1,3 @@
-```c
 // --- Library --------------------------------------------------------------------------
 struct ui_box {int x,y,w,h;};
 typedef unsigned long long ui_id;
@@ -292,4 +291,3 @@ int main(int argc, char **argv)
     }
     return 0;
 }
-```
