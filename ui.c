@@ -126,7 +126,7 @@ ui_panel_end(struct ui_panel *pan)
         struct ui_node *n = ui_tree + pan->node;
         int i = n->lst;
         while (i != -1) {
-            n->siz[0] = max(n->siz[1], ui_tree[i].siz[1]);
+            n->siz[0] = max(n->siz[0], ui_tree[i].siz[0]);
             n->siz[1] = max(n->siz[1], ui_tree[i].siz[1]);
             i = ui_tree[i].nxt;
         }
