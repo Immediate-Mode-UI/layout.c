@@ -73,21 +73,19 @@ ui_hash(ui_id x)
 static void
 ui_add(ui_id key, int val)
 {
-    ui_id n = (ui_id)ui_tbl_cnt;
     ui_id i = key & UI_TBL_MSK, b = i;
     do {if (ui_tbl_keys[i]) continue;
         ui_tbl_keys[i] = key;
         ui_tbl_vals[i] = val; return;
-    } while ((i = ((i+1) & (n-1))) != b);
+    } while ((i = ((i+1) & UI_TBL_MSK)) != b);
 }
 static int
 ui_fnd(ui_id key)
 {
-    ui_id k, n = (ui_id)ui_tbl_cnt;
-    ui_id i = key & UI_TBL_MSK, b = i;
+    ui_id k, i = key & UI_TBL_MSK, b = i;
     do {if (!(k = ui_tbl_keys[i])) return 0;
         if (k == key) return (int)i;
-    } while ((i = ((i+1) & (n-1))) != b);
+    } while ((i = ((i+1) & UI_TBL_MSK)) != b);
     return UI_TBL_CNT;
 }
 static int
