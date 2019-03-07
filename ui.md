@@ -1,52 +1,32 @@
 ```c
-struct ui_box {
-    int left, right;
-    int top, bottom;
-    int center_x, center_y;
-    int width, height;
-};
-struct ui_mouse_input {
-    int pos[2];
-    int prev_pos[2];
-    int drag_area[2];
-    int scrl_delta[2];
-
-    unsigned was_scrolled:1;
-    unsigned left_pressed:1;
-    unsigned left_released:1;
-    unsigned left_clicked:1;
-};
-struct ui_input {
-    struct ui_mouse_input mouse;
-    unsigned key_mod;
-    unsigned is_hovered:1;
-    unsigned was_entered:1;
-    unsigned was_left:1;
-    unsigned has_focus:1;
-    unsigned gained_focus:1;
-    unsigned lost_focus:1;
-};
+// --- Library --------------------------------------------------------------------------
+struct ui_box {int x,y,w,h;};
 typedef unsigned long long ui_id;
 struct ui_node {
     int parent;
     int chd;
     int nxt;
-    struct ui_box box;
+    int cnt;
+    int siz[2];
 };
 struct ui_panel {
     ui_id id;
     struct ui_box box;
-    struct ui_input input;
-    struct ui_node *node;
+    int node_idx;
 };
 enum ui_pass {
-    UI_PASS_BLUEPRINT,
-    UI_PASS_LAYOUT,
-    UI_PASS_INPUT,
-    UI_PASS_RENDER,
+    // public
+    UI_BLUEPRINT,
+    UI_LAYOUT,
+    UI_INPUT,
+    UI_RENDER,
+
+    // internal
+    UI_INVALID,
+    UI_FINISHED,
     UI_PASS_CNT
 };
-static int ui_pass = UI_PASS_RENDER;
+static int ui_pass = UI_BLUEPRINT;
 
 // id stack
 int ui_id_stk_top;
@@ -68,11 +48,13 @@ static ui_id ui_tbl_keys[UI_MAX_NODES * 2];
 static int ui_tbl_vals[UI_MAX_NODES * 2]
 static int ui_tbl_cnt = 0;
 
+#define max(a,b) ((a) > (b) ? (a) : (b))
+
 static ui_id
 ui_gen_id()
 {
     ui_id id = ui_id_stk[ui_id_stk_top-1];
-    ui_id_stk[ui_id_stk_top-1] = (id & ~ 0xffffffffllu) | ((id & 0xffffffffllu) + 1);
+    ui_id_stk[ui_id_stk_top-1] = (id & ~0xffffffffllu) | ((id & 0xffffffffllu) + 1);
     return id;
 }
 static void
@@ -91,79 +73,236 @@ ui_fnd(ui_id key)
     ui_id k, n = cast(ui_id, ui_tbl_cnt);
     ui_id i = key & (n-1), b = i;
     do {if (!(k = ui_tbl_keys[i])) return 0;
-        if (k == key) return i;
+        if (k == key) return (int)i;
     } while ((i = ((i+1) & (n-1))) != b);
     return UI_MAX_NODES;
 }
-static struct ui_node*
+static int
 ui_add_node(int parent)
 {
     assert(ui_node_cnt < UI_MAX_NODES);
-    struct ui_node *n = &ui_tree[ui_node_cnt++];    
+    struct ui_node *n = &ui_tree[ui_node_cnt];    
     n->parent = parent;
     if (parent >= 0) {
-        struct ui_node *p = &ui_tree[ui_node_cnt++];
+        struct ui_node *p = &ui_tree[parent];
         n->nxt = p->chd;
         p->chd = n - ui_tree;
+        p->cnt++;
     } 
     n->chd = -1;
     ui_add(pan->id, ui_node_cnt);
-    return n;
+    return ui_node_cnt++;
 }
 static void
-ui_panel_begin(struct ui_panel *pan, struct ui_box *box)
+ui_panel_begin(struct ui_panel *pan, struct ui_box box)
 {
     memset(pan,0,sizeof(*pan));
     pan->id = ui_gen_id();
     pan->box = *box;
 
     switch (ui_pass) {
-    default: break;
-    case UI_PASS_BLUEPRINT: {
+    case UI_BLUEPRINT: {
         assert(ui_stk_top < UI_STK_MAX);
-        pan->node = ui_add_node(ui_stk[ui_stk_top]);
+        pan->node = ui_add_node(ui_stk[ui_stk_top-1]);
         ui_stk[ui_stk_top++] = pan->node - ui_tree;
-    } break;}
+    } break;
+    default: {
+        pan->node = ui_fnd(pan->id);
+        if (pan->node >= UI_MAX_NODES)
+            ui_pass =  UI_INVALID;
+    } break; }
 }
 static void
 ui_panel_end(struct ui_panel *pan)
 {
     switch (ui_pass) {
     default: break;
-    case UI_PASS_BLUEPRINT: {
+    case UI_BLUEPRINT: {
+        struct ui_node *n = ui_tree + pan->node;
+        int i = n->chd;
+        while (i != -1) {
+            n->siz[0] = max(n->siz[1], ui_tree[i].siz[1]);
+            n->siz[1] = max(n->siz[1], ui_tree[i].siz[1])
+            i = ui_tree[i].nxt;
+        } 
         assert(ui_stk_top > 0);
         ui_stk_top--;
     } break;}
 }
-static void
-ui_begin(struct ui_panel* root, struct ui_box *scr)
+static int
+ui_begin(struct ui_panel* root, struct ui_box scr)
 {
-    ui_id_stk[0] = -1;
-    ui_stk_top = 1;
-    ui_pass = (ui_pass + 1) % UI_PASS_CNT;
-    
     switch (ui_pass) {
-    case UI_PASS_BLUEPRINT: {
-        /* reset layouting */
+    default: break;
+    case UI_BLUEPRINT: {
         ui_node_cnt = 0;
         memset(ui_tbl_keys, 0, sizeof(ui_tbl_keys));
         memset(ui_tbl_vals, 0, sizeof(ui_tbl_vals));
         ui_tbl_cnt = 0;
     } break;
-    case UI_PASS_LAYOUT: {
-        
-    } break;
-    case UI_PASS_INPUT: {
-        
-    } break;
-    case UI_PASS_RENDER: {
-        
+    case UI_FINISHED: {
+        ui_pass = UI_BLUEPRINT;
+        return 0;
     } break;}
-    ui_panel_begin(root, &scr);
+
+    ui_stk_top = 1;
+    ui_id_stk[0] = -1;
+    ui_panel_begin(root, scr);
 }
 static void
-ui_end()
+ui_end(void)
 {
+    assert(ui_stk_top == 1);
+    assert(ui_id_stk_top == 1);
 
+    switch (ui_pass) {
+    case UI_INVALID: ui_pass = UI_BLUEPRINT; break;
+    case UI_LAYOUT: ui_pass = UI_INPUT; break;
+    case UI_INPUT: ui_pass = UI_RENDER; break;
+    case UI_RENDER: ui_pass = UI_FINISHED; break;
+    case UI_BLUEPRINT: {
+        ui_pass = UI_LAYOUT; break
+        for (i = ui_node_cnt; i > 0; ++i) {
+            /* reverse children list */
+            struct ui_node *n = ui_tree + i - 1;
+            if (n->chd != -1) {
+                int a = n->chd;
+                int b = ui_tree[a].nxt;
+                while (a != -1 && b != -1) {
+                    int nxt = ui_tree[b].nxt;
+                    ui_tree[b].nxt = a;
+                    a = b, b = nxt;
+                }
+            }
+        } 
+    } break;}   
+}
+
+// --- Widgets --------------------------------------------------------------------------
+enum ui_flow {
+    UI_HORIZONTAL,
+    UI_VERTICAL
+};
+struct ui_lay {
+    struct ui_panel pan;
+    enum ui_flow flow;
+    int spacing;
+    int at, n;
+};
+static void 
+ui_lay_begin(struct ui_lay *lay, enum ui_flow flow, struct ui_box box)
+{
+    lay->flow = flow;
+    ui_panel_begin(&lay->pan, box);
+
+    switch (ui_pass) {
+    case UI_LAYOUT: {
+        lay->at = lay->flow == UI_HORIZONTAL ? box.x: box.y;
+        lay->n = ui_tree[lay->pan.node].chld;
+        // TODO(micha): handle case box.w/h < node.siz
+    } break;}  
+}
+static struct ui_box
+ui_lay_gen(struct ui_lay *lay)
+{
+    struct ui_box b = {0,0,0,0};
+    assert(lay->n != -1);
+
+    switch (ui_pass) {
+    case UI_LAYOUT: {
+        struct ui_node *n = ui_tree + lay->n;
+        switch (lay->flow) {
+        case UI_HORIZONTAL: {
+            b = (struct ui_box){lay->at, lay->pan.box.y, n->siz[0], lay->pan.box.h};
+            lay->at = n->siz[0] + lay->spacing;
+        } break;
+        case UI_VERTICAL: {
+            b = (struct ui_box){lay->pan.box.x, lay->at, lay->pan.box.w, n->siz[1]};
+            lay->at = n->siz[1] + lay->spacing;
+        }}
+        lay->n = ui_tree[lay->n].nxt;
+        return b;
+    } break;
+    default: break;} 
+    return b;
+}
+static void
+ui_lay_end(struct ui_lay *lay)
+{
+    ui_panel_end(&lay->pan);
+    switch (ui_pass) {
+    default: break;
+    case UI_BLUEPRINT: {
+        struct ui_node *n = ui_tree + lay->pan.node;
+        int i = n->chd;
+        while (i != -1) {
+            switch (lay->flow) {
+            case UI_HORIZONTAL: {
+                n->siz[0] = ui_tree[i].siz[0] + spacing;
+                n->siz[1] = max(n->siz[1], ui_tree[i].siz[1])
+            } break;
+            case UI_VERTICAL: {
+                n->siz[0] = max(n->siz[0], ui_tree[i].siz[0])
+                n->siz[1] = ui_tree[i].siz[1] + spacing;
+            } break;} 
+            i = ui_tree[i].nxt;
+        }
+    } break;}
+}
+static void
+ui_lbl(struct ui_box box, const char *str_begin, const char *str_end)
+{
+    struct ui_panel pan;
+    str_end = str_end ? str_end : str_begin + strlen(str_begin);
+    ui_panel_begin(&pan, box);
+    {
+        switch (ui_pass) {
+        default: break;
+        case UI_BLUEPRINT: {
+            /* some dummy code for calculationg text size */
+            #define TEST_CHAR_WIDTH 6
+            #define TEST_CHAR_HEIGHT 12
+            struct ui_node *n = ui_tree + pan.node;
+            n->siz[0] = (str_end - str_begin) * TEST_CHAR_WIDTH;
+            n->siz[1] = TEST_CHAR_HEIGHT;
+        } break;}     
+    }
+    ui_panel_end(&pan);
+}
+int main(int argc, char **argv)
+{
+    bool running = true;
+    while( running ) {
+        // run ui passes
+        struct ui_panel root;
+        struct ui_box scrn = (struct ui_box){0,0,1200,800};
+        while (ui_begin(&root, scrn)) {
+            struct ui_lay col = {.spacing = 8};
+            ui_lay_begin(&col, UI_VERTICAL, root.box);
+            {
+                // first row
+                struct ui_lay row0 = {.spacing = 4};
+                ui_lay_begin(&row0, UI_HORIZONTAL, ui_lay_gen(&col));
+                {
+                    ui_lbl(ui_lay_gen(&row0), "Label",0);
+                    ui_lbl(ui_lay_gen(&row0), "Hallo World",0);
+                    ui_lbl(ui_lay_gen(&row0), "Hallo Universe",0);
+                }
+                ui_lay_end(&row0);
+
+                // second row
+                struct ui_lay row1 = {.spacing = 4};
+                ui_lay_begin(&row1, UI_HORIZONTAL, ui_lay_gen(&col));
+                {
+                    ui_lbl(ui_lay_gen(&row1), "Text",0);
+                    ui_lbl(ui_lay_gen(&row1), "Very long string to show of layouting",0);
+                }
+                ui_lay_end(&row1);
+            }
+            ui_lay_end(&col);
+            ui_end();
+        }
+    }
+    return 0;
 }
 ```
