@@ -103,9 +103,9 @@ ui_add_node(ui_id id, int parent)
             ui_tree[p->end].nxt = ui_node_cnt;
             p->end = ui_node_cnt;
         }
-        n->nxt = -1;
         p->cnt++;
     }
+    n->nxt = -1;
     n->lst = n->end = -1;
     ui_add(ui_hash(id), ui_node_cnt);
     return ui_node_cnt++;
