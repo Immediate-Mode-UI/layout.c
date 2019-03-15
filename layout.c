@@ -299,20 +299,16 @@ int main(int argc, char **argv)
                 // first row
                 struct ui_lay row0 = {.spacing = 4};
                 ui_lay_begin(&row0, UI_HORIZONTAL, ui_lay_gen(&col));
-                {
-                    ui_lbl(ui_lay_gen(&row0), "Label",0);
-                    ui_lbl(ui_lay_gen(&row0), "Hallo World",0);
-                    ui_lbl(ui_lay_gen(&row0), "Hallo Universe",0);
-                }
+                ui_lbl(ui_lay_gen(&row0), "Label",0);
+                ui_lbl(ui_lay_gen(&row0), "Hallo World",0);
+                ui_lbl(ui_lay_gen(&row0), "Hallo Universe",0);
                 ui_lay_end(&row0);
 
                 // second row
                 struct ui_lay row1 = {.spacing = 4};
                 ui_lay_begin(&row1, UI_HORIZONTAL, ui_lay_gen(&col));
-                {
-                    ui_lbl(ui_lay_gen(&row1), "Text",0);
-                    ui_lbl(ui_lay_gen(&row1), "Very long string to show of layouting",0);
-                }
+                ui_lbl(ui_lay_gen(&row1), "Text",0);
+                ui_lbl(ui_lay_gen(&row1), "Very long string to show of layouting",0);
                 ui_lay_end(&row1);
             }
             ui_lay_end(&col);
