@@ -105,8 +105,7 @@ ui_add_node(ui_id id, int parent)
         }
         p->cnt++;
     }
-    n->nxt = -1;
-    n->lst = n->end = -1;
+    n->nxt = n->lst = n->end = -1;
     ui_add(ui_hash(id), ui_node_cnt);
     return ui_node_cnt++;
 }
@@ -194,7 +193,7 @@ struct ui_lay {
     struct ui_panel pan;
     enum ui_flow flow;
     int spacing;
-    int at, n;
+    int at, node;
 };
 static void
 ui_lay_begin(struct ui_lay *lay, enum ui_flow flow, struct ui_box box)
@@ -210,7 +209,7 @@ ui_lay_begin(struct ui_lay *lay, enum ui_flow flow, struct ui_box box)
         lay->pan.box.h = n->siz[1];
 
         lay->at = lay->flow == UI_HORIZONTAL ? box.x: box.y;
-        lay->n = ui_tree[lay->pan.node].lst;
+        lay->node = ui_tree[lay->pan.node].lst;
         // TODO(micha): handle case box.w/h < node.siz
     } break;}
 }
@@ -218,12 +217,12 @@ static struct ui_box
 ui_lay_gen(struct ui_lay *lay)
 {
     struct ui_box b = {0,0,0,0};
-    assert(lay->n != -1);
+    assert(lay->node != -1);
 
     switch (ui_pass) {
     case UI_BLUEPRINT: break;
     default: {
-        struct ui_node *n = ui_tree + lay->n;
+        struct ui_node *n = ui_tree + lay->node;
         switch (lay->flow) {
         case UI_HORIZONTAL: {
             b = (struct ui_box){lay->at, lay->pan.box.y, n->siz[0], n->siz[1]};
@@ -233,7 +232,7 @@ ui_lay_gen(struct ui_lay *lay)
             b = (struct ui_box){lay->pan.box.x, lay->at, n->siz[0], n->siz[1]};
             lay->at += n->siz[1] + lay->spacing;
         }}
-        lay->n = ui_tree[lay->n].nxt;
+        lay->node = ui_tree[lay->node].nxt;
         return b;
     }}
     return b;
