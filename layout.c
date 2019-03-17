@@ -282,11 +282,8 @@ ui_lbl(struct ui_box box, const char *str_begin, const char *str_end)
     }
     ui_panel_end(&pan);
 }
-int main(int argc, char **argv)
+int main(void)
 {
-    (void)argc;
-    (void)argv;
-
     while( 1 ) {
         // run ui passes
         struct ui_panel root;
