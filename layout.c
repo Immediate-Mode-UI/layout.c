@@ -41,8 +41,8 @@ static int ui_stk[UI_STK_MAX];
 
 // layout tree
 #define UI_MAX_NODES (64*1024)
-static int ui_node_cnt = 0;
 static struct ui_node ui_tree[UI_MAX_NODES];
+static int ui_node_cnt = 0;
 
 // table
 #define UI_TBL_CNT (UI_MAX_NODES * 2)
@@ -51,6 +51,7 @@ static ui_id ui_tbl_keys[UI_TBL_CNT];
 static int ui_tbl_vals[UI_TBL_CNT];
 static int ui_tbl_cnt = 0;
 
+#define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))
 
 static ui_id
@@ -288,7 +289,8 @@ int main(void)
         // run ui passes
         struct ui_panel root;
         struct ui_box scrn = (struct ui_box){0,0,1200,800};
-        while (ui_begin(&root, scrn)) {
+        while (ui_begin(&root, scrn))
+        {
             struct ui_lay col = {.spacing = 8};
             ui_lay_begin(&col, UI_VERTICAL, root.box);
             {
