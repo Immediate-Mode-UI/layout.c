@@ -288,7 +288,7 @@ int main(void)
     int running = 1;
     while (running) {
         struct ui_panel root;
-        while (ui_begin(&root, ui_box(0,0,1200,800)))
+        while (ui_begin(&root,ui_box(0,0,1200,800)))
         {
             struct ui_lay col = {.spacing = 8};
             ui_lay_begin(&col, UI_VERTICAL, root.box);
