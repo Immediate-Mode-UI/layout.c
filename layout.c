@@ -53,6 +53,7 @@ static int ui_tbl_cnt = 0;
 
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))
+#define ui_box(x,y,w,h) (struct ui_box){x,y,w,h}
 
 static ui_id
 ui_gen_id()
@@ -284,11 +285,10 @@ ui_lbl(struct ui_box box, const char *str_begin, const char *str_end)
 }
 int main(void)
 {
-    while( 1 ) {
-        // run ui passes
+    int running = 1;
+    while (running) {
         struct ui_panel root;
-        struct ui_box scrn = (struct ui_box){0,0,1200,800};
-        while (ui_begin(&root, scrn))
+        while (ui_begin(&root, ui_box(0,0,1200,800)))
         {
             struct ui_lay col = {.spacing = 8};
             ui_lay_begin(&col, UI_VERTICAL, root.box);
