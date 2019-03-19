@@ -252,12 +252,12 @@ ui_lay_end(struct ui_lay *lay)
         while (i != -1) {
             switch (lay->flow) {
             case UI_HORIZONTAL: {
-                n->siz[0] += ui_tree[i].siz[0] + lay->spacing;
+                n->siz[0] += ui_tree[i].siz[0];
                 n->siz[1] = max(n->siz[1], ui_tree[i].siz[1]);
             } break;
             case UI_VERTICAL: {
                 n->siz[0] = max(n->siz[0], ui_tree[i].siz[0]);
-                n->siz[1] += ui_tree[i].siz[1] + lay->spacing;
+                n->siz[1] += ui_tree[i].siz[1];
             } break;}
             i = ui_tree[i].nxt;
         }
