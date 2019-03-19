@@ -47,8 +47,8 @@ static int ui_node_cnt = 0;
 // table
 #define UI_TBL_CNT (UI_MAX_NODES * 2)
 #define UI_TBL_MSK (UI_TBL_CNT-1)
-static ui_id ui_tbl_keys[UI_TBL_CNT];
-static int ui_tbl_vals[UI_TBL_CNT];
+static ui_id ui_tbl_key[UI_TBL_CNT];
+static int ui_tbl_val[UI_TBL_CNT];
 static int ui_tbl_cnt = 0;
 
 #define min(a,b) ((a) < (b) ? (a) : (b))
@@ -75,16 +75,16 @@ static void
 ui_add(ui_id key, int val)
 {
     ui_id i = key & UI_TBL_MSK, b = i;
-    do {if (ui_tbl_keys[i]) continue;
-        ui_tbl_keys[i] = key;
-        ui_tbl_vals[i] = val; return;
+    do {if (ui_tbl_key[i]) continue;
+        ui_tbl_key[i] = key;
+        ui_tbl_val[i] = val; return;
     } while ((i = ((i+1) & UI_TBL_MSK)) != b);
 }
 static int
 ui_fnd(ui_id key)
 {
     ui_id k, i = key & UI_TBL_MSK, b = i;
-    do {if (!(k = ui_tbl_keys[i])) return 0;
+    do {if (!(k = ui_tbl_key[i])) return 0;
         if (k == key) return (int)i;
     } while ((i = ((i+1) & UI_TBL_MSK)) != b);
     return UI_TBL_CNT;
@@ -94,8 +94,7 @@ ui_add_node(ui_id id, int parent)
 {
     assert(ui_node_cnt < UI_MAX_NODES);
     struct ui_node *n = &ui_tree[ui_node_cnt];
-    n->parent = parent;
-    if (parent >= 0) {
+    if ((n->parent = parent) >= 0) {
         struct ui_node *p = &ui_tree[parent];
         if (p->lst < 0) {
             p->end = ui_node_cnt;
@@ -127,7 +126,7 @@ ui_panel_begin(struct ui_panel *pan, struct ui_box box)
         const int idx = ui_fnd(ui_hash(pan->id));
         if (idx >= UI_TBL_CNT)
             ui_pass =  UI_INVALID;
-        else pan->node = ui_tbl_vals[idx];
+        else pan->node = ui_tbl_val[idx];
     } break; }
 }
 static void
@@ -155,8 +154,8 @@ ui_begin(struct ui_panel* root, struct ui_box scr)
     default: break;
     case UI_BLUEPRINT: {
         ui_node_cnt = 0;
-        memset(ui_tbl_keys, 0, sizeof(ui_tbl_keys));
-        memset(ui_tbl_vals, 0, sizeof(ui_tbl_vals));
+        memset(ui_tbl_key, 0, sizeof(ui_tbl_key));
+        memset(ui_tbl_val, 0, sizeof(ui_tbl_val));
         ui_tbl_cnt = 0;
     } break;
     case UI_FINISHED: {
