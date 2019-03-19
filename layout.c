@@ -73,7 +73,7 @@ ui_hash(ui_id x)
     return x;
 }
 static void
-ui_add(ui_id key, int val)
+ui_put(ui_id key, int val)
 {
     ui_id i = key & UI_TBL_MSK, b = i;
     do {if (ui_tbl_key[i]) continue;
@@ -91,7 +91,7 @@ ui_fnd(ui_id key)
     return UI_TBL_CNT;
 }
 static int
-ui_add_node(ui_id id, int parent)
+ui_add(ui_id id, int parent)
 {
     assert(ui_node_cnt < UI_MAX_NODES);
     struct ui_node *n = &ui_tree[ui_node_cnt];
@@ -107,7 +107,7 @@ ui_add_node(ui_id id, int parent)
         p->cnt++;
     }
     n->nxt = n->lst = n->end = -1;
-    ui_add(ui_hash(id), ui_node_cnt);
+    ui_put(ui_hash(id), ui_node_cnt);
     return ui_node_cnt++;
 }
 static void
@@ -120,7 +120,7 @@ ui_panel_begin(struct ui_panel *pan, struct ui_box box)
     switch (ui_pass) {
     case UI_BLUEPRINT: {
         assert(ui_stk_top < UI_STK_MAX);
-        pan->node = ui_add_node(pan->id, ui_stk[ui_stk_top-1]);
+        pan->node = ui_add(pan->id, ui_stk[ui_stk_top-1]);
         ui_stk[ui_stk_top++] = pan->node;
     } break;
     default: {
