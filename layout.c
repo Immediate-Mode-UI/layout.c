@@ -30,19 +30,19 @@ enum ui_pass {
 static int ui_pass = UI_BLUEPRINT;
 
 // id stack
-static int ui_id_stk_top;
 #define UI_ID_STK_MAX  8
+static int ui_id_stk_top;
 static ui_id ui_id_stk[UI_ID_STK_MAX];
 
 // panel stack
-static int ui_stk_top;
 #define UI_STK_MAX 32
+static int ui_stk_top;
 static int ui_stk[UI_STK_MAX];
 
 // layout tree
 #define UI_MAX_NODES (64*1024)
-static struct ui_node ui_tree[UI_MAX_NODES];
 static int ui_node_cnt = 0;
+static struct ui_node ui_tree[UI_MAX_NODES];
 
 // table
 #define UI_TBL_CNT (UI_MAX_NODES * 2)
