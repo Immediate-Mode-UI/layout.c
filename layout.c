@@ -226,11 +226,11 @@ ui_lay_gen(struct ui_lay *lay)
         struct ui_node *n = ui_tree + lay->node;
         switch (lay->flow) {
         case UI_HORIZONTAL: {
-            b = (struct ui_box){lay->at, lay->pan.box.y, n->siz[0], n->siz[1]};
+            b = ui_box(lay->at, lay->pan.box.y, n->siz[0], n->siz[1]);
             lay->at += n->siz[0] + lay->spacing;
         } break;
         case UI_VERTICAL: {
-            b = (struct ui_box){lay->pan.box.x, lay->at, n->siz[0], n->siz[1]};
+            b = ui_box(lay->pan.box.x, lay->at, n->siz[0], n->siz[1]);
             lay->at += n->siz[1] + lay->spacing;
         }}
         lay->node = ui_tree[lay->node].nxt;
