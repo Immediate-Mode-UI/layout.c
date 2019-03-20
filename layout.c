@@ -17,7 +17,6 @@ struct ui_panel {
 };
 enum ui_pass {
     // public
-    UI_BLUEPRINT,
     UI_LAYOUT,
     UI_INPUT,
     UI_RENDER,
@@ -27,7 +26,7 @@ enum ui_pass {
     UI_FINISHED,
     UI_PASS_CNT
 };
-static int ui_pass = UI_BLUEPRINT;
+static int ui_pass = UI_LAYOUT;
 
 // id stack
 #define UI_ID_STK_MAX  8
@@ -118,7 +117,7 @@ ui_panel_begin(struct ui_panel *pan, struct ui_box box)
     pan->box = box;
 
     switch (ui_pass) {
-    case UI_BLUEPRINT: {
+    case UI_LAYOUT: {
         assert(ui_stk_top < UI_STK_MAX);
         pan->node = ui_node(pan->id, ui_stk[ui_stk_top-1]);
         ui_stk[ui_stk_top++] = pan->node;
@@ -135,8 +134,8 @@ ui_panel_end(struct ui_panel *pan)
 {
     switch (ui_pass) {
     default: break;
-    case UI_BLUEPRINT: {
-        /* default blueprint */
+    case UI_LAYOUT: {
+        /* default layouting */
         struct ui_node *n = ui_tree + pan->node;
         int i = n->lst;
         while (i != -1) {
@@ -153,14 +152,14 @@ ui_begin(struct ui_panel* root, struct ui_box scr)
 {
     switch (ui_pass) {
     default: break;
-    case UI_BLUEPRINT: {
+    case UI_LAYOUT: {
         ui_node_cnt = 0;
         memset(ui_tbl_key, 0, sizeof(ui_tbl_key));
         memset(ui_tbl_val, 0, sizeof(ui_tbl_val));
         ui_tbl_cnt = 0;
     } break;
     case UI_FINISHED: {
-        ui_pass = UI_BLUEPRINT;
+        ui_pass = UI_LAYOUT;
         return 0;
     }}
     ui_id_stk_top = 1;
@@ -178,11 +177,10 @@ ui_end(struct ui_panel* root)
     assert(ui_id_stk_top == 1);
 
     switch (ui_pass) {
-    case UI_INVALID: ui_pass = UI_BLUEPRINT; break;
+    case UI_INVALID: ui_pass = UI_LAYOUT; break;
     case UI_LAYOUT: ui_pass = UI_INPUT; break;
     case UI_INPUT: ui_pass = UI_RENDER; break;
-    case UI_RENDER: ui_pass = UI_FINISHED; break;
-    case UI_BLUEPRINT:  ui_pass = UI_LAYOUT; break;}
+    case UI_RENDER: ui_pass = UI_FINISHED; break;}
 }
 
 // --- Widgets --------------------------------------------------------------------------
@@ -203,7 +201,7 @@ ui_lay_begin(struct ui_lay *lay, enum ui_flow flow, struct ui_box box)
     ui_panel_begin(&lay->pan, box);
 
     switch (ui_pass) {
-    case UI_BLUEPRINT: break;
+    case UI_LAYOUT: break;
     default: {
         const struct ui_node *n = ui_tree + lay->pan.node;
         lay->pan.box.w = n->siz[0];
@@ -221,7 +219,7 @@ ui_lay_gen(struct ui_lay *lay)
     assert(lay->node != -1);
 
     switch (ui_pass) {
-    case UI_BLUEPRINT: break;
+    case UI_LAYOUT: break;
     default: {
         struct ui_node *n = ui_tree + lay->node;
         switch (lay->flow) {
@@ -244,7 +242,7 @@ ui_lay_end(struct ui_lay *lay)
     ui_panel_end(&lay->pan);
     switch (ui_pass) {
     default: break;
-    case UI_BLUEPRINT: {
+    case UI_LAYOUT: {
         struct ui_node *n = ui_tree + lay->pan.node;
         n->siz[0] = n->siz[1] = 0;
 
@@ -272,7 +270,7 @@ ui_lbl(struct ui_box box, const char *str_begin, const char *str_end)
     {
         switch (ui_pass) {
         default: break;
-        case UI_BLUEPRINT: {
+        case UI_LAYOUT: {
             /* some dummy code for calculating text size */
             #define TEST_CHAR_WIDTH 6
             #define TEST_CHAR_HEIGHT 12
