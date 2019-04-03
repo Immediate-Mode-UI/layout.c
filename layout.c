@@ -6,8 +6,7 @@ struct ui_box {int x,y,w,h;};
 typedef unsigned long long ui_id;
 struct ui_node {
     int parent;
-    int lst, end;
-    int nxt, cnt;
+    int lst, end, nxt;
     int siz[2];
 };
 struct ui_panel {
@@ -100,7 +99,6 @@ ui_node(ui_id id, int parent)
             p->lst = ui_node_cnt;
         else ui_tree[p->end].nxt = ui_node_cnt;
         p->end = ui_node_cnt;
-        p->cnt++;
     }
     n->nxt = n->lst = n->end = -1;
     ui_put(ui_hash(id), ui_node_cnt);
