@@ -97,12 +97,9 @@ ui_node(ui_id id, int parent)
     if ((n->parent = parent) >= 0) {
         struct ui_node *p = &ui_tree[parent];
         if (p->lst < 0) {
-            p->end = ui_node_cnt;
-            p->lst = p->end;
-        } else {
-            ui_tree[p->end].nxt = ui_node_cnt;
-            p->end = ui_node_cnt;
-        }
+            p->lst = ui_node_cnt;
+        } else ui_tree[p->end].nxt = ui_node_cnt;
+        p->end = ui_node_cnt;
         p->cnt++;
     }
     n->nxt = n->lst = n->end = -1;
