@@ -96,9 +96,9 @@ ui_node(ui_id id, int parent)
     struct ui_node *n = &ui_tree[ui_node_cnt];
     if ((n->parent = parent) >= 0) {
         struct ui_node *p = &ui_tree[parent];
-        if (p->lst < 0) {
+        if (p->lst < 0)
             p->lst = ui_node_cnt;
-        } else ui_tree[p->end].nxt = ui_node_cnt;
+        else ui_tree[p->end].nxt = ui_node_cnt;
         p->end = ui_node_cnt;
         p->cnt++;
     }
