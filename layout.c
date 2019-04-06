@@ -101,7 +101,7 @@ ui_node(ui_id id, int parent)
         p->end = ui_node_cnt;
     }
     n->nxt = n->lst = n->end = -1;
-    ui_put(id, ui_node_cnt);
+    ui_put(ui_hash(pan->id), ui_node_cnt);
     return ui_node_cnt++;
 }
 static void
@@ -114,7 +114,7 @@ ui_panel_begin(struct ui_panel *pan, struct ui_box box)
     switch (ui_pass) {
     case UI_LAYOUT: {
         assert(ui_stk_top < UI_STK_MAX);
-        pan->node = ui_node(ui_hash(pan->id), ui_stk[ui_stk_top-1]);
+        pan->node = ui_node(id, ui_stk[ui_stk_top-1]);
         ui_stk[ui_stk_top++] = pan->node;
     } break;
     default: {
