@@ -301,7 +301,6 @@ struct ui_lst_lay {
     int page_cnt;
     int at[2];
     int idx;
-    int row_cnt;
     struct ui_box box;
     int row_height;
     int pass;
@@ -321,7 +320,6 @@ ui_lst_begin(struct ui_lst_lay *lst, struct ui_box box, int row_height)
     lst->box = box;
     lst->row_height = !row_height ? TEST_CHAR_HEIGHT: row_height;
     lst->page_cnt = box.h / lst->row_height;
-    lst->row_cnt = 0;
     lst->at[0] = box.x;
     lst->at[1] = box.y;
     lst->idx = 0;
