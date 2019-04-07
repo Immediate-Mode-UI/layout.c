@@ -404,8 +404,7 @@ int main(void)
             ui_panel_begin(&area, ui_box(50, 200 - (int)off, 600, 600));
             {
                 struct ui_lst_lay lst_lay = {0};
-                ui_lst_begin(&lst_lay, area.box, 0);
-                {
+                ui_lst_begin(&lst_lay, area.box, 0); {
                     struct ui_lst_view lst_view = {0};
                     ui_lst_view(&lst_view, &lst_lay, 1024, off);
                     for (int i = lst_view.begin; i < lst_view.end; ++i)
