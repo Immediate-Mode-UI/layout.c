@@ -340,8 +340,6 @@ static void
 ui_lst_end(struct ui_lst_lay *lst)
 {
     ui_pass = lst->pass;
-    if (ui_pass == UI_NO_LAYOUT)
-        ui_pass = UI_LAYOUT;
 }
 static void
 ui_lst_view(struct ui_lst_view *v, struct ui_lst_lay* ls, int num, float off)
