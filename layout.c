@@ -13,7 +13,7 @@ struct ui_panel {
     ui_id id;
     struct ui_box box;
     int node;
-    int max_x, max_y;
+    int max[2];
 };
 enum ui_pass {
     // public
@@ -136,8 +136,8 @@ ui_panel_end(struct ui_panel *pan)
     struct ui_panel *p;
     assert(ui_stk_top > 0);
     if ((p = ui_stk[ui_stk_top-1])) {
-        p->max_x = pan->box.x + pan->box.w;
-        p->max_y = pan->box.y + pan->box.h;
+        p->max[0] = pan->box.x + pan->box.w;
+        p->max[1] = pan->box.y + pan->box.h;
     }
     switch (ui_pass) {
     default: break;
@@ -404,7 +404,8 @@ int main(void)
             ui_panel_begin(&area, ui_box(50, 200 - (int)off, 600, 600));
             {
                 struct ui_lst_lay lst_lay = {0};
-                ui_lst_begin(&lst_lay, area.box, 0); {
+                ui_lst_begin(&lst_lay, area.box, 0);
+                {
                     struct ui_lst_view lst_view = {0};
                     ui_lst_view(&lst_view, &lst_lay, 1024, off);
                     for (int i = lst_view.begin; i < lst_view.end; ++i)
