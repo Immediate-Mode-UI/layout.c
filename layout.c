@@ -200,6 +200,7 @@ struct ui_lay {
     enum ui_orient orient;
     int spacing;
     int at, node;
+    int pass;
 };
 static void
 ui_lay_begin(struct ui_lay *lay, enum ui_orient orient, struct ui_box box)
@@ -207,8 +208,10 @@ ui_lay_begin(struct ui_lay *lay, enum ui_orient orient, struct ui_box box)
     lay->orient = orient;
     ui_panel_begin(&lay->pan, box);
 
+    lay->pass = ui_pass;
     switch (ui_pass) {
-    case UI_NO_LAYOUT: assert(0); break;
+    case UI_NO_LAYOUT:
+        ui_pass = UI_LAYOUT;
     case UI_LAYOUT: break;
     case UI_INPUT:
     case UI_RENDER: {
@@ -269,6 +272,7 @@ ui_lay_end(struct ui_lay *lay)
             } break;}
             i = ui_tree[i].nxt;
         }
+        ui_pass = lay->pass;
     } break;}
 }
 static void
@@ -300,6 +304,7 @@ struct ui_lst_lay {
     int row_cnt;
     struct ui_box box;
     int row_height;
+    int pass;
 };
 struct ui_lst_view {
     float off;
@@ -321,12 +326,14 @@ ui_lst_begin(struct ui_lst_lay *lst, struct ui_box box, int row_height)
     lst->at[1] = box.y;
     lst->idx = 0;
 
+    lst->pass = ui_pass;
     if (ui_pass == UI_LAYOUT)
         ui_pass = UI_NO_LAYOUT;
 }
 static struct ui_box
 ui_lst_gen(struct ui_lst_lay *lst)
 {
+    /* allocate space from layout */
     struct ui_box b = ui_box(lst->at[0], lst->at[1], lst->box.w, lst->row_height);
     lst->at[1] += b.h;
     lst->idx++;
@@ -335,7 +342,7 @@ ui_lst_gen(struct ui_lst_lay *lst)
 static void
 ui_lst_end(struct ui_lst_lay *lst)
 {
-    (void)lst;
+    ui_pass = lst->pass;
     if (ui_pass == UI_NO_LAYOUT)
         ui_pass = UI_LAYOUT;
 }
