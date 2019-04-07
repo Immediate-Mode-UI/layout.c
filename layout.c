@@ -333,7 +333,6 @@ ui_lst_begin(struct ui_lst_lay *lst, struct ui_box box, int row_height)
 static struct ui_box
 ui_lst_gen(struct ui_lst_lay *lst)
 {
-    /* allocate space from layout */
     struct ui_box b = ui_box(lst->at[0], lst->at[1], lst->box.w, lst->row_height);
     lst->at[1] += b.h;
     lst->idx++;
