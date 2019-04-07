@@ -13,6 +13,7 @@ struct ui_panel {
     ui_id id;
     struct ui_box box;
     int node;
+    int max_x, max_y;
 };
 enum ui_pass {
     // public
@@ -22,6 +23,7 @@ enum ui_pass {
 
     // internal
     UI_INVALID,
+    UI_NO_LAYOUT,
     UI_FINISHED,
     UI_PASS_CNT
 };
@@ -35,7 +37,7 @@ static ui_id ui_id_stk[UI_ID_STK_MAX];
 // panel stack
 #define UI_STK_MAX 32
 static int ui_stk_top;
-static int ui_stk[UI_STK_MAX];
+static struct ui_panel* ui_stk[UI_STK_MAX];
 
 // layout tree
 #define UI_MAX_NODES (64*1024)
@@ -101,7 +103,7 @@ ui_node(ui_id id, int parent)
         p->end = ui_node_cnt;
     }
     n->nxt = n->lst = n->end = -1;
-    ui_put(ui_hash(pan->id), ui_node_cnt);
+    ui_put(ui_hash(id), ui_node_cnt);
     return ui_node_cnt++;
 }
 static void
@@ -110,14 +112,18 @@ ui_panel_begin(struct ui_panel *pan, struct ui_box box)
     memset(pan,0,sizeof(*pan));
     pan->id = ui_gen_id();
     pan->box = box;
+    pan->node = -1;
 
     switch (ui_pass) {
     case UI_LAYOUT: {
+        assert(ui_stk_top > 0);
         assert(ui_stk_top < UI_STK_MAX);
-        pan->node = ui_node(id, ui_stk[ui_stk_top-1]);
-        ui_stk[ui_stk_top++] = pan->node;
+        struct ui_panel *p = ui_stk[ui_stk_top-1];
+        pan->node = ui_node(pan->id, p ? p->node: -1);
+        ui_stk[ui_stk_top++] = pan;
     } break;
-    default: {
+    case UI_INPUT:
+    case UI_RENDER: {
         const int idx = ui_fnd(ui_hash(pan->id));
         if (idx >= UI_TBL_CNT)
             ui_pass =  UI_INVALID;
@@ -127,6 +133,12 @@ ui_panel_begin(struct ui_panel *pan, struct ui_box box)
 static void
 ui_panel_end(struct ui_panel *pan)
 {
+    struct ui_panel *p;
+    assert(ui_stk_top > 0);
+    if ((p = ui_stk[ui_stk_top-1])) {
+        p->max_x = pan->box.x + pan->box.w;
+        p->max_y = pan->box.y + pan->box.h;
+    }
     switch (ui_pass) {
     default: break;
     case UI_LAYOUT: {
@@ -138,7 +150,6 @@ ui_panel_end(struct ui_panel *pan)
             n->siz[1] = max(n->siz[1], ui_tree[i].siz[1]);
             i = ui_tree[i].nxt;
         }
-        assert(ui_stk_top > 0);
         ui_stk_top--;
     } break;}
 }
@@ -160,7 +171,7 @@ ui_begin(struct ui_panel* root, struct ui_box scr)
     ui_id_stk_top = 1;
     ui_id_stk[0] = 1;
     ui_stk_top = 1;
-    ui_stk[0] = -1;
+    ui_stk[0] = 0;
     ui_panel_begin(root, scr);
     return 1;
 }
@@ -170,41 +181,44 @@ ui_end(struct ui_panel* root)
     ui_panel_end(root);
     assert(ui_stk_top == 1);
     assert(ui_id_stk_top == 1);
+    assert(ui_pass != UI_NO_LAYOUT);
 
     switch (ui_pass) {
-    case UI_INVALID: ui_pass = UI_LAYOUT; break;
     case UI_LAYOUT: ui_pass = UI_INPUT; break;
     case UI_INPUT: ui_pass = UI_RENDER; break;
+    case UI_INVALID: ui_pass = UI_LAYOUT; break;
     case UI_RENDER: ui_pass = UI_FINISHED; break;}
 }
 
-// --- Widgets --------------------------------------------------------------------------
-enum ui_flow {
+// --- Widgets ------------------------------------------------------------------
+enum ui_orient {
     UI_HORIZONTAL,
     UI_VERTICAL
 };
 struct ui_lay {
     struct ui_panel pan;
-    enum ui_flow flow;
+    enum ui_orient orient;
     int spacing;
     int at, node;
 };
 static void
-ui_lay_begin(struct ui_lay *lay, enum ui_flow flow, struct ui_box box)
+ui_lay_begin(struct ui_lay *lay, enum ui_orient orient, struct ui_box box)
 {
-    lay->flow = flow;
+    lay->orient = orient;
     ui_panel_begin(&lay->pan, box);
 
     switch (ui_pass) {
+    case UI_NO_LAYOUT: assert(0); break;
     case UI_LAYOUT: break;
-    default: {
+    case UI_INPUT:
+    case UI_RENDER: {
+        // TODO(micha): handle case box.w/h < node.siz
         const struct ui_node *n = ui_tree + lay->pan.node;
         lay->pan.box.w = n->siz[0];
         lay->pan.box.h = n->siz[1];
 
-        lay->at = lay->flow == UI_HORIZONTAL ? box.x: box.y;
+        lay->at = lay->orient == UI_HORIZONTAL ? box.x: box.y;
         lay->node = ui_tree[lay->pan.node].lst;
-        // TODO(micha): handle case box.w/h < node.siz
     } break;}
 }
 static struct ui_box
@@ -214,10 +228,11 @@ ui_lay_gen(struct ui_lay *lay)
     assert(lay->node != -1);
 
     switch (ui_pass) {
-    case UI_LAYOUT: break;
-    default: {
+    default: break;
+    case UI_INPUT:
+    case UI_RENDER: {
         struct ui_node *n = ui_tree + lay->node;
-        switch (lay->flow) {
+        switch (lay->orient) {
         case UI_HORIZONTAL: {
             b = ui_box(lay->at, lay->pan.box.y, n->siz[0], n->siz[1]);
             lay->at += n->siz[0] + lay->spacing;
@@ -243,7 +258,7 @@ ui_lay_end(struct ui_lay *lay)
 
         int i = n->lst;
         while (i != -1) {
-            switch (lay->flow) {
+            switch (lay->orient) {
             case UI_HORIZONTAL: {
                 n->siz[0] += ui_tree[i].siz[0] + lay->spacing;
                 n->siz[1] = max(n->siz[1], ui_tree[i].siz[1]);
@@ -276,6 +291,84 @@ ui_lbl(struct ui_box box, const char *str_begin, const char *str_end)
     }
     ui_panel_end(&pan);
 }
+
+// --- List ------------------------------------------------------------------
+struct ui_lst_lay {
+    int page_cnt;
+    int at[2];
+    int idx;
+    int row_cnt;
+    struct ui_box box;
+    int row_height;
+};
+struct ui_lst_view {
+    float off;
+    int off_idx;
+    int num, begin, end;
+    int total[2];
+    int max[2];
+    int at[2];
+    int cnt;
+};
+static void
+ui_lst_begin(struct ui_lst_lay *lst, struct ui_box box, int row_height)
+{
+    lst->box = box;
+    lst->row_height = !row_height ? TEST_CHAR_HEIGHT: row_height;
+    lst->page_cnt = box.h / lst->row_height;
+    lst->row_cnt = 0;
+    lst->at[0] = box.x;
+    lst->at[1] = box.y;
+    lst->idx = 0;
+
+    if (ui_pass == UI_LAYOUT)
+        ui_pass = UI_NO_LAYOUT;
+}
+static struct ui_box
+ui_lst_gen(struct ui_lst_lay *lst)
+{
+    /* allocate space from layout */
+    struct ui_box b = ui_box(lst->at[0], lst->at[1], lst->box.w, lst->row_height);
+    lst->at[1] += b.h;
+    lst->idx++;
+    return b;
+}
+static void
+ui_lst_end(struct ui_lst_lay *lst)
+{
+    (void)lst;
+    if (ui_pass == UI_NO_LAYOUT)
+        ui_pass = UI_LAYOUT;
+}
+static void
+ui_lst_view(struct ui_lst_view *v, struct ui_lst_lay* ls, int num, float off)
+{
+    v->num = max(1, num) - 1;
+    v->cnt = ls->page_cnt;
+
+    v->off = off;
+    v->off_idx = (int)(off / (float)ls->row_height);
+
+    v->begin = v->off_idx;
+    v->end = v->begin + ls->page_cnt + 1;
+    v->end = min(v->end, v->num);
+
+    v->at[1] = ls->at[1] + (int)(v->off_idx * ls->row_height);
+    v->at[0] = ls->at[0];
+
+    v->total[0] = ls->box.w;
+    v->total[1] = v->num * ls->row_height;
+
+    v->max[0] = ls->at[0] + v->total[0];
+    v->max[1] = ls->at[1] + v->total[1];
+
+    // apply view to layout
+    ls->at[0] = v->at[0];
+    ls->at[1] = v->at[1];
+    ls->idx = v->begin;
+}
+
+// --- Test --------------------------------------------------------------------
 int main(void)
 {
     int running = 1;
@@ -283,6 +376,7 @@ int main(void)
         struct ui_panel root;
         while (ui_begin(&root,ui_box(0,0,1200,800)))
         {
+            // layouting
             struct ui_lay col = {.spacing = 8};
             ui_lay_begin(&col, UI_VERTICAL, root.box);
             {
@@ -302,7 +396,26 @@ int main(void)
                 ui_lay_end(&row1);
             }
             ui_lay_end(&col);
+
+            // list
+            static float off = 50.0f;
+            struct ui_panel area = {0};
+            ui_panel_begin(&area, ui_box(50, 200 - (int)off, 600, 600));
+            {
+                struct ui_lst_lay lst_lay = {0};
+                ui_lst_begin(&lst_lay, area.box, 0);
+                {
+                    struct ui_lst_view lst_view = {0};
+                    ui_lst_view(&lst_view, &lst_lay, 1024, off);
+                    for (int i = lst_view.begin; i < lst_view.end; ++i)
+                        ui_lbl(ui_lst_gen(&lst_lay), "Item", 0);
+                }
+                ui_lst_end(&lst_lay);
+            }
+            ui_panel_end(&area);
+
             ui_end(&root);
         }
     }
+    return 0;
 }
