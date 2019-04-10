@@ -23,7 +23,6 @@ enum ui_pass {
 
     // internal
     UI_INVALID,
-    UI_NO_LAYOUT,
     UI_FINISHED,
     UI_PASS_CNT
 };
@@ -85,7 +84,7 @@ static int
 ui_fnd(ui_id key)
 {
     ui_id k, i = key & UI_TBL_MSK, b = i;
-    do {if (!(k = ui_tbl_key[i])) return 0;
+    do {if (!(k = ui_tbl_key[i])) return UI_TBL_CNT;
         if (k == key) return (int)i;
     } while ((i = ((i+1) & UI_TBL_MSK)) != b);
     return UI_TBL_CNT;
@@ -181,7 +180,6 @@ ui_end(struct ui_panel* root)
     ui_panel_end(root);
     assert(ui_stk_top == 1);
     assert(ui_id_stk_top == 1);
-    assert(ui_pass != UI_NO_LAYOUT);
 
     switch (ui_pass) {
     case UI_LAYOUT: ui_pass = UI_INPUT; break;
@@ -200,7 +198,6 @@ struct ui_lay {
     enum ui_orient orient;
     int spacing;
     int at, node;
-    int pass;
 };
 static void
 ui_lay_begin(struct ui_lay *lay, enum ui_orient orient, struct ui_box box)
@@ -208,10 +205,7 @@ ui_lay_begin(struct ui_lay *lay, enum ui_orient orient, struct ui_box box)
     lay->orient = orient;
     ui_panel_begin(&lay->pan, box);
 
-    lay->pass = ui_pass;
     switch (ui_pass) {
-    case UI_NO_LAYOUT:
-        ui_pass = UI_LAYOUT;
     case UI_LAYOUT: break;
     case UI_INPUT:
     case UI_RENDER: {
@@ -272,7 +266,6 @@ ui_lay_end(struct ui_lay *lay)
             } break;}
             i = ui_tree[i].nxt;
         }
-        ui_pass = lay->pass;
     } break;}
 }
 static void
@@ -303,7 +296,6 @@ struct ui_lst_lay {
     int idx;
     struct ui_box box;
     int row_height;
-    int pass;
 };
 struct ui_lst_view {
     float off;
@@ -323,10 +315,6 @@ ui_lst_begin(struct ui_lst_lay *lst, struct ui_box box, int row_height)
     lst->at[0] = box.x;
     lst->at[1] = box.y;
     lst->idx = 0;
-
-    lst->pass = ui_pass;
-    if (ui_pass == UI_LAYOUT)
-        ui_pass = UI_NO_LAYOUT;
 }
 static struct ui_box
 ui_lst_gen(struct ui_lst_lay *lst)
@@ -339,7 +327,7 @@ ui_lst_gen(struct ui_lst_lay *lst)
 static void
 ui_lst_end(struct ui_lst_lay *lst)
 {
-    ui_pass = lst->pass;
+    (void)lst;
 }
 static void
 ui_lst_view(struct ui_lst_view *v, struct ui_lst_lay* ls, int num, float off)
@@ -401,9 +389,11 @@ int main(void)
             // list
             static float off = 50.0f;
             struct ui_panel area = {0};
-            ui_panel_begin(&area, ui_box(50, 200 - (int)off, 600, 600)); {
+            ui_panel_begin(&area, ui_box(50, 200 - (int)off, 600, 600));
+            {
                 struct ui_lst_lay lst_lay = {0};
-                ui_lst_begin(&lst_lay, area.box, 0);{
+                ui_lst_begin(&lst_lay, area.box, 0);
+                {
                     struct ui_lst_view lst_view = {0};
                     ui_lst_view(&lst_view, &lst_lay, 1024, off);
                     for (int i = lst_view.begin; i < lst_view.end; ++i)
