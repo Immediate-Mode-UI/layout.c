@@ -26,7 +26,7 @@ enum ui_pass {
     UI_FINISHED,
     UI_PASS_CNT
 };
-static int ui_pass = UI_LAYOUT;
+static enum ui_pass ui_pass = UI_LAYOUT;
 
 // id stack
 #define UI_ID_STK_MAX  8
